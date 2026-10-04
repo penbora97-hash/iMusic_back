@@ -2,13 +2,23 @@
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\File;
 
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
 */
+
+// ✅ Storage Proxy — ត្រូវដាក់នៅខាងលើ!
+Route::get('/storage/{path}', function ($path) {
+    $filePath = storage_path('app/public/' . $path);
+    
+    if (!file_exists($filePath)) {
+        abort(404, 'File not found: ' . $path);
+    }
+    
+    return response()->file($filePath);
+})->where('path', '.*');
 
 // ✅ Root Route
 Route::get('/', function () {
@@ -37,37 +47,12 @@ Route::get('/clear-all-cache', function () {
     return 'All caches cleared!';
 });
 
-// ✅ Debug Info — ឆែក Storage Files
+// ✅ Debug Info
 Route::get('/debug-info', function () {
-    $publicPath = public_path();
-    $storagePath = storage_path();
-    $coversPath = storage_path('app/public/covers');
-    $songsPath = storage_path('app/public/songs');
-    
     return response()->json([
-        'public_path' => $publicPath,
-        'storage_path' => $storagePath,
-        'storage_link_exists' => file_exists($publicPath . '/storage'),
-        'storage_app_public_exists' => file_exists($storagePath . '/app/public'),
-        'covers_exists' => file_exists($coversPath),
-        'songs_exists' => file_exists($songsPath),
-        'covers_files' => file_exists($coversPath) ? scandir($coversPath) : [],
-        'songs_files' => file_exists($songsPath) ? scandir($songsPath) : [],
-        'php_version' => phpversion(),
-        'laravel_version' => app()->version(),
+        'storage_link_exists' => file_exists(public_path('storage')),
+        'covers_exists' => file_exists(storage_path('app/public/covers')),
+        'artists_exists' => file_exists(storage_path('app/public/artists')),
+        'songs_exists' => file_exists(storage_path('app/public/songs')),
     ]);
-});
-
-// ✅ Test Image Route
-Route::get('/test-image', function () {
-    $path = storage_path('app/public/covers');
-    if (file_exists($path)) {
-        $files = array_diff(scandir($path), ['.', '..']);
-        return response()->json([
-            'covers_folder' => $path,
-            'files_count' => count($files),
-            'files' => array_values($files),
-        ]);
-    }
-    return response()->json(['error' => 'Covers folder not found']);
 });
