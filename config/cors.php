@@ -31,4 +31,10 @@ return [
 
     'supports_credentials' => false,
 
+    'allowed_origins' => [
+        'http://localhost:5173',
+        'https://imusic-hub.vercel.app',
+        'https://i-music-front.vercel.app',
+    ],
+
 ];
