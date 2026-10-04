@@ -9,8 +9,6 @@ use Illuminate\Support\Str;
 
 class ArtistController extends Controller
 {
-    // ===== Admin Methods (ត្រូវការ Login) =====
-
     public function index()
     {
         return Artist::withCount('songs')->latest()->get();
@@ -20,7 +18,7 @@ class ArtistController extends Controller
     {
         return $artist->load(['songs' => function ($q) {
             $q->with('genre')->latest();
-        }]);
+        }])->loadCount('songs');
     }
 
     public function store(Request $r)
@@ -30,6 +28,9 @@ class ArtistController extends Controller
             'bio' => 'nullable|string|max:1000',
             'image' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
+
+        // ✅ លុប Key 'image'
+        unset($d['image']);
 
         $imageUrl = null;
         if ($r->hasFile('image')) {
@@ -53,6 +54,9 @@ class ArtistController extends Controller
             'image' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
+        // ✅ លុប Key 'image'
+        unset($d['image']);
+
         if ($r->hasFile('image')) {
             if ($artist->image_url) {
                 Storage::disk('public')->delete(Str::after($artist->image_url, '/storage/'));
@@ -73,16 +77,11 @@ class ArtistController extends Controller
         return ['ok' => true];
     }
 
-    // ===== Public Methods (មិនត្រូវការ Login) =====
-
-    /**
-     * Public: List Artists ទាំងអស់ដែលមានចម្រៀង
-     */
+    // ===== Public Methods =====
     public function publicList()
     {
         return Artist::withCount('songs')
             ->orderByDesc('songs_count')
-            ->orderBy('name')
             ->get();
     }
 
