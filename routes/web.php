@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -13,6 +14,29 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
+// Route::get('/', function () {
+//     return view('welcome');
+// });
+Route::get('/create-storage-link', function () {
+    try {
+        Artisan::call('storage:link');
+        return 'Storage link created successfully!';
+    } catch (\Exception $e) {
+        return 'Error: ' . $e->getMessage();
+    }
+});
+
+// ✅ Clear Cache ទាំងអស់
+Route::get('/clear-all-cache', function () {
+    Artisan::call('config:clear');
+    Artisan::call('cache:clear');
+    Artisan::call('route:clear');
+    Artisan::call('view:clear');
+    return 'All caches cleared!';
+});
+
+// ✅ Run Migration
+Route::get('/run-migration', function () {
+    Artisan::call('migrate', ['--force' => true]);
+    return Artisan::output();
 });
