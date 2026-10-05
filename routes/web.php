@@ -18,11 +18,13 @@ Route::get('/', function () {
     ]);
 });
 
-// ✅ Debug Info (ជំនួស Storage Proxy Route)
+// ✅ Debug Info (Cloudinary)
 Route::get('/debug-info', function () {
     return response()->json([
         'storage' => 'Cloudinary',
         'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
+        'api_key' => env('CLOUDINARY_API_KEY') ? 'Set ✅' : 'Missing ❌',
+        'api_secret' => env('CLOUDINARY_API_SECRET') ? 'Set ✅' : 'Missing ❌',
         'php_version' => phpversion(),
         'laravel_version' => app()->version(),
     ]);
