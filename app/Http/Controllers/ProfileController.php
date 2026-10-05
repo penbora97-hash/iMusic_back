@@ -6,43 +6,53 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ProfileController extends Controller
 {
     public function update(Request $r)
     {
-        $u = $r->user();
+        $user = $r->user();
+
         $d = $r->validate([
-            'name' => 'required|string|max:50',
-            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($u->id)],
-            'avatar' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:3072',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'avatar' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
             'current_password' => 'nullable|string',
             'password' => 'nullable|string|min:6',
         ]);
 
-        // ប្តូរ password (ត្រូវបញ្ជាក់ password ចាស់)
+        // ✅ Update Password
         if (!empty($d['password'])) {
-            if (!Hash::check($d['current_password'] ?? '', $u->password)) {
-                return response()->json(['message' => 'Password បច្ចុប្បន្នមិនត្រឹមត្រូវ'], 422);
+            if (!Hash::check($d['current_password'], $user->password)) {
+                return response()->json([
+                    'message' => 'Password បច្ចុប្បន្នមិនត្រឹមត្រូវ',
+                ], 422);
             }
-            $u->password = Hash::make($d['password']);
-            // ចេញពី session ផ្សេងៗ ទុកតែ session នេះ
-            $u->tokens()->where('id', '!=', $u->currentAccessToken()->id)->delete();
+            $user->password = Hash::make($d['password']);
         }
 
-        // រូប Profile: លុបរូបចាស់ រួចរក្សាទុករូបថ្មី
+        // ✅ Update Avatar ទៅ Cloudinary
         if ($r->hasFile('avatar')) {
-            if ($u->avatar_url) {
-                Storage::disk('public')->delete(Str::after($u->avatar_url, '/storage/'));
-            }
-            $u->avatar_url = '/storage/' . $r->file('avatar')->store('avatars', 'public');
+            $uploaded = Cloudinary::upload(
+                $r->file('avatar')->getRealPath(),
+                ['folder' => 'imusic/avatars']
+            );
+            $user->avatar_url = $uploaded->getSecurePath();
         }
 
-        $u->name = $d['name'];
-        $u->email = $d['email'];
-        $u->save();
+        // ✅ Update Fields
+        $user->name = $d['name'];
+        $user->email = $d['email'];
+        $user->save();
 
-        return ['id' => $u->id, 'username' => $u->name, 'email' => $u->email, 'role' => $u->role, 'avatar_url' => $u->avatar_url];
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'username' => $user->name,
+            'role' => $user->role,
+            'avatar_url' => $user->avatar_url,
+        ]);
     }
 }
