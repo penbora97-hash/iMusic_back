@@ -18,6 +18,13 @@ Route::get('/', function () {
     ]);
 });
 
+// ✅ Login Fallback Route (សម្រាប់ Laravel Auth Middleware)
+Route::get('/login', function () {
+    return response()->json([
+        'message' => 'Unauthenticated. Please login.',
+    ], 401);
+})->name('login');
+
 // ✅ Debug Info (Cloudinary)
 Route::get('/debug-info', function () {
     return response()->json([
