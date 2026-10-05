@@ -4,8 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\{Artist, Genre, Song};
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class SongController extends Controller
 {
@@ -43,19 +42,20 @@ class SongController extends Controller
             'artist' => 'required|string|max:255',
             'genre' => 'nullable|string|max:100',
             'audio' => 'required|file|mimes:mp3,mpga,mp4,wav|max:30720',
-            'cover' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:5120', // ✅ បន្ថែម
+            'cover' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:5120',
             'artist_image' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
         $artist = Artist::firstOrCreate(['name' => trim($d['artist'])]);
 
-        // Save Artist Image
+        // ✅ Save Artist Image ទៅ Cloudinary
         if ($r->hasFile('artist_image')) {
-            if ($artist->image_url) {
-                Storage::disk('public')->delete(Str::after($artist->image_url, '/storage/'));
-            }
+            $uploaded = Cloudinary::upload(
+                $r->file('artist_image')->getRealPath(),
+                ['folder' => 'imusic/artists']
+            );
             $artist->update([
-                'image_url' => '/storage/' . $r->file('artist_image')->store('artists', 'public'),
+                'image_url' => $uploaded->getSecurePath(),
             ]);
         }
 
@@ -63,10 +63,24 @@ class SongController extends Controller
             ? Genre::firstOrCreate(['name' => trim($d['genre'])])
             : null;
 
-        // ✅ Save Cover
+        // ✅ Save Cover ទៅ Cloudinary
         $coverUrl = null;
         if ($r->hasFile('cover')) {
-            $coverUrl = '/storage/' . $r->file('cover')->store('covers', 'public');
+            $uploaded = Cloudinary::upload(
+                $r->file('cover')->getRealPath(),
+                ['folder' => 'imusic/covers']
+            );
+            $coverUrl = $uploaded->getSecurePath();
+        }
+
+        // ✅ Save Audio ទៅ Cloudinary (resource_type video)
+        $audioUrl = null;
+        if ($r->hasFile('audio')) {
+            $uploaded = Cloudinary::uploadVideo(
+                $r->file('audio')->getRealPath(),
+                ['folder' => 'imusic/songs']
+            );
+            $audioUrl = $uploaded->getSecurePath();
         }
 
         $song = Song::create([
@@ -74,8 +88,8 @@ class SongController extends Controller
             'artist_id' => $artist->id,
             'genre_id' => $genre?->id,
             'uploaded_by' => $r->user()->id,
-            'file_url' => '/storage/' . $r->file('audio')->store('songs', 'public'),
-            'cover_url' => $coverUrl, // ✅ Save Cover
+            'file_url' => $audioUrl,
+            'cover_url' => $coverUrl,
         ]);
 
         return response()->json($song->load(['artist', 'genre']), 201);
@@ -88,12 +102,15 @@ class SongController extends Controller
             'cover' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
-        // Update Cover
+        unset($d['cover']);
+
+        // ✅ Update Cover ទៅ Cloudinary
         if ($r->hasFile('cover')) {
-            if ($song->cover_url) {
-                Storage::disk('public')->delete(Str::after($song->cover_url, '/storage/'));
-            }
-            $d['cover_url'] = '/storage/' . $r->file('cover')->store('covers', 'public');
+            $uploaded = Cloudinary::upload(
+                $r->file('cover')->getRealPath(),
+                ['folder' => 'imusic/covers']
+            );
+            $d['cover_url'] = $uploaded->getSecurePath();
         }
 
         $song->update($d);
@@ -102,21 +119,17 @@ class SongController extends Controller
 
     public function destroy(Song $song)
     {
-        foreach ([$song->file_url, $song->cover_url] as $u) {
-            if ($u) Storage::disk('public')->delete(Str::after($u, '/storage/'));
-        }
         $song->delete();
         return ['ok' => true];
     }
+
     public function top()
     {
-        // Top 10 Songs ពេញនិយម
         $top_songs = Song::with(['artist', 'genre'])
             ->orderByDesc('play_count')
             ->limit(10)
             ->get();
 
-        // Top 10 Artists ពេញនិយម (តាមចំនួន Plays សរុប)
         $top_artists = Artist::withCount('songs')
             ->withSum('songs', 'play_count')
             ->orderByDesc('songs_sum_play_count')

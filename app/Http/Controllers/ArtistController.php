@@ -4,8 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Artist;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ArtistController extends Controller
 {
@@ -29,12 +28,16 @@ class ArtistController extends Controller
             'image' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
-        // ✅ លុប Key 'image'
         unset($d['image']);
 
+        // ✅ Save Image ទៅ Cloudinary
         $imageUrl = null;
         if ($r->hasFile('image')) {
-            $imageUrl = '/storage/' . $r->file('image')->store('artists', 'public');
+            $uploaded = Cloudinary::upload(
+                $r->file('image')->getRealPath(),
+                ['folder' => 'imusic/artists']
+            );
+            $imageUrl = $uploaded->getSecurePath();
         }
 
         $artist = Artist::create([
@@ -54,14 +57,15 @@ class ArtistController extends Controller
             'image' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
-        // ✅ លុប Key 'image'
         unset($d['image']);
 
+        // ✅ Update Image ទៅ Cloudinary
         if ($r->hasFile('image')) {
-            if ($artist->image_url) {
-                Storage::disk('public')->delete(Str::after($artist->image_url, '/storage/'));
-            }
-            $d['image_url'] = '/storage/' . $r->file('image')->store('artists', 'public');
+            $uploaded = Cloudinary::upload(
+                $r->file('image')->getRealPath(),
+                ['folder' => 'imusic/artists']
+            );
+            $d['image_url'] = $uploaded->getSecurePath();
         }
 
         $artist->update($d);
@@ -70,9 +74,6 @@ class ArtistController extends Controller
 
     public function destroy(Artist $artist)
     {
-        if ($artist->image_url) {
-            Storage::disk('public')->delete(Str::after($artist->image_url, '/storage/'));
-        }
         $artist->delete();
         return ['ok' => true];
     }
